@@ -51,6 +51,12 @@ public class DBHelper {
                 "startTime TEXT," +
                 "endTime TEXT)");
 
+        // Admin table
+        stmt.execute("CREATE TABLE IF NOT EXISTS Admin (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "username TEXT UNIQUE NOT NULL," +
+                "password TEXT NOT NULL)");
+
         conn.close();
     }
 
@@ -109,6 +115,30 @@ public class DBHelper {
         conn.close();
     }
 
+    public static void addAdmin(String username, String password) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "INSERT INTO Admin (username, password) VALUES (?, ?)");
+        pstmt.setString(1, username);
+        pstmt.setString(2, password);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    // ✅ Authentication
+    public static boolean authenticateAdmin(String username, String password) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "SELECT * FROM Admin WHERE username=? AND password=?");
+        pstmt.setString(1, username);
+        pstmt.setString(2, password);
+
+        ResultSet rs = pstmt.executeQuery();
+        boolean valid = rs.next();
+        conn.close();
+        return valid;
+    }
+
     // ✅ Fetch Methods
     public static List<Faculty> getAllFaculties() throws SQLException {
         List<Faculty> list = new ArrayList<>();
@@ -163,7 +193,7 @@ public class DBHelper {
         ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM ClassGroup");
         while (rs.next()) {
             list.add(new ClassGroup(
-                    rs.getString("id"),
+                    rs.getString("name"),
                     rs.getString("department"),
                     rs.getInt("semester"),
                     new ArrayList<>() // subjects will be assigned later
@@ -188,3 +218,4 @@ public class DBHelper {
         return list;
     }
 }
+
