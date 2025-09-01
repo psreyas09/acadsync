@@ -1,5 +1,4 @@
-
-import core.TimetableManager;
+ import core.TimetableManager;
 import models.*;
 import utils.DBHelper;
 
