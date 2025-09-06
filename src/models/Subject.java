@@ -24,4 +24,22 @@ public class Subject {
 
     public boolean isOnline() { return isOnline; }
     public void setOnline(boolean online) { isOnline = online; }
+
+    @Override
+    public String toString() {
+        return name + " (" + hoursPerWeek + "h/week" + (isOnline ? ", Online" : "") + ")";
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Subject subject = (Subject) obj;
+        return id == subject.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(id);
+    }
 }

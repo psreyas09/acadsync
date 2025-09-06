@@ -1,16 +1,21 @@
 package models;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Faculty {
     private int id;
     private String name;
     private String availableFrom;
     private String availableTo;
+    private List<Subject> assignedSubjects;
 
     public Faculty(int id, String name, String availableFrom, String availableTo) {
         this.id = id;
         this.name = name;
         this.availableFrom = availableFrom;
         this.availableTo = availableTo;
+        this.assignedSubjects = new ArrayList<>();
     }
 
     public int getId() { return id; }
@@ -24,4 +29,17 @@ public class Faculty {
 
     public String getAvailableTo() { return availableTo; }
     public void setAvailableTo(String availableTo) { this.availableTo = availableTo; }
+
+    public List<Subject> getAssignedSubjects() { return assignedSubjects; }
+    public void setAssignedSubjects(List<Subject> assignedSubjects) { this.assignedSubjects = assignedSubjects; }
+    
+    public void addSubject(Subject subject) { 
+        if (!assignedSubjects.contains(subject)) {
+            assignedSubjects.add(subject); 
+        }
+    }
+    
+    public void removeSubject(Subject subject) { 
+        assignedSubjects.remove(subject); 
+    }
 }

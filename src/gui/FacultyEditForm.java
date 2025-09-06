@@ -1,12 +1,16 @@
 package gui;
 
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 import javax.swing.*;
+import models.Faculty;
 import models.Subject;
 import utils.DBHelper;
 
-public class FacultyForm extends JFrame {
+public class FacultyEditForm extends JFrame {
+    private int facultyId;
+    private FacultyManagement parentWindow;
     private JTextField nameField;
     private JTextField fromField;
     private JTextField toField;
@@ -14,15 +18,20 @@ public class FacultyForm extends JFrame {
     private JList<Subject> selectedSubjectsList;
     private DefaultListModel<Subject> availableModel;
     private DefaultListModel<Subject> selectedModel;
-    
-    public FacultyForm() {
-        setTitle("Add Faculty");
+    private Faculty currentFaculty;
+
+    public FacultyEditForm(int facultyId, FacultyManagement parent) {
+        this.facultyId = facultyId;
+        this.parentWindow = parent;
+        
+        setTitle("Edit Faculty");
         setSize(600, 400);
-        setLocationRelativeTo(null);
+        setLocationRelativeTo(parent);
         setLayout(new BorderLayout());
 
         initializeComponents();
         setupLayout();
+        loadFacultyData();
         loadSubjects();
         setupEventHandlers();
 
@@ -99,9 +108,9 @@ public class FacultyForm extends JFrame {
         
         // Bottom panel for action buttons
         JPanel bottomPanel = new JPanel(new FlowLayout());
-        JButton saveBtn = new JButton("Save Faculty");
+        JButton updateBtn = new JButton("Update Faculty");
         JButton cancelBtn = new JButton("Cancel");
-        bottomPanel.add(saveBtn);
+        bottomPanel.add(updateBtn);
         bottomPanel.add(cancelBtn);
         
         // Add to main frame
@@ -115,16 +124,45 @@ public class FacultyForm extends JFrame {
         addAllButton.addActionListener(e -> moveAllSubjects(availableModel, selectedModel));
         removeAllButton.addActionListener(e -> moveAllSubjects(selectedModel, availableModel));
         
-        saveBtn.addActionListener(e -> saveFaculty());
+        updateBtn.addActionListener(e -> updateFaculty());
         cancelBtn.addActionListener(e -> dispose());
+    }
+
+    private void loadFacultyData() {
+        try {
+            List<Faculty> faculties = DBHelper.getAllFaculties();
+            for (Faculty faculty : faculties) {
+                if (faculty.getId() == facultyId) {
+                    currentFaculty = faculty;
+                    nameField.setText(faculty.getName());
+                    fromField.setText(faculty.getAvailableFrom());
+                    toField.setText(faculty.getAvailableTo());
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "⚠ Error loading faculty data: " + ex.getMessage());
+        }
     }
 
     private void loadSubjects() {
         try {
-            List<Subject> subjects = DBHelper.getAllSubjects();
+            List<Subject> allSubjects = DBHelper.getAllSubjects();
+            List<Subject> assignedSubjects = currentFaculty != null ? currentFaculty.getAssignedSubjects() : new ArrayList<>();
+            
             availableModel.clear();
-            for (Subject subject : subjects) {
-                availableModel.addElement(subject);
+            selectedModel.clear();
+            
+            // Add assigned subjects to selected list
+            for (Subject subject : assignedSubjects) {
+                selectedModel.addElement(subject);
+            }
+            
+            // Add unassigned subjects to available list
+            for (Subject subject : allSubjects) {
+                if (!assignedSubjects.contains(subject)) {
+                    availableModel.addElement(subject);
+                }
             }
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "⚠ Error loading subjects: " + ex.getMessage());
@@ -153,7 +191,7 @@ public class FacultyForm extends JFrame {
         }
     }
 
-    private void saveFaculty() {
+    private void updateFaculty() {
         try {
             // Validate input
             if (nameField.getText().trim().isEmpty()) {
@@ -161,23 +199,31 @@ public class FacultyForm extends JFrame {
                 return;
             }
 
-            // Add faculty to database
-            DBHelper.addFaculty(nameField.getText().trim(), fromField.getText().trim(), toField.getText().trim());
+            // Update faculty basic info
+            DBHelper.updateFaculty(facultyId, nameField.getText().trim(), fromField.getText().trim(), toField.getText().trim());
             
-            // Get the ID of the newly inserted faculty
-            int facultyId = DBHelper.getLastInsertedFacultyId();
+            // Remove all existing subject assignments
+            List<Subject> currentAssignments = DBHelper.getSubjectsForFaculty(facultyId);
+            for (Subject subject : currentAssignments) {
+                DBHelper.removeSubjectFromFaculty(facultyId, subject.getId());
+            }
             
-            // Assign selected subjects to faculty
+            // Add new subject assignments
             for (int i = 0; i < selectedModel.getSize(); i++) {
                 Subject subject = selectedModel.getElementAt(i);
                 DBHelper.assignSubjectToFaculty(facultyId, subject.getId());
             }
             
-            JOptionPane.showMessageDialog(this, "✅ Faculty added successfully with " + selectedModel.getSize() + " assigned subjects!");
+            JOptionPane.showMessageDialog(this, "✅ Faculty updated successfully with " + selectedModel.getSize() + " assigned subjects!");
+            
+            // Refresh parent window and close this dialog
+            if (parentWindow != null) {
+                parentWindow.refreshData();
+            }
             dispose();
             
         } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "⚠ Error saving faculty: " + ex.getMessage());
+            JOptionPane.showMessageDialog(this, "⚠ Error updating faculty: " + ex.getMessage());
             ex.printStackTrace();
         }
     }

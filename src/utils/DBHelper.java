@@ -12,30 +12,30 @@ public class DBHelper {
         return DriverManager.getConnection(DB_URL);
     }
 
-    // ✅ Create all tables
+    // ✅ Create all tables with proper resource management
     public static void createTables() throws SQLException {
-        Connection conn = connect();
-        Statement stmt = conn.createStatement();
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement()) {
 
-        // Faculty table
-        stmt.execute("CREATE TABLE IF NOT EXISTS Faculty (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT NOT NULL," +
-                "availableFrom TEXT," +
-                "availableTo TEXT)");
+            // Faculty table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Faculty (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT NOT NULL," +
+                    "availableFrom TEXT," +
+                    "availableTo TEXT)");
 
-        // Subject table
-        stmt.execute("CREATE TABLE IF NOT EXISTS Subject (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "name TEXT NOT NULL," +
-                "hoursPerWeek INTEGER," +
-                "isOnline INTEGER)");
+            // Subject table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Subject (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "name TEXT NOT NULL," +
+                    "hoursPerWeek INTEGER," +
+                    "isOnline INTEGER)");
 
-        // Room table
-        stmt.execute("CREATE TABLE IF NOT EXISTS Room (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "roomNo TEXT," +
-                "capacity INTEGER)");
+            // Room table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Room (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "roomNo TEXT," +
+                    "capacity INTEGER)");
 
         // ClassGroup table
         stmt.execute("CREATE TABLE IF NOT EXISTS ClassGroup (" +
@@ -57,7 +57,15 @@ public class DBHelper {
                 "username TEXT UNIQUE NOT NULL," +
                 "password TEXT NOT NULL)");
 
-        conn.close();
+        // FacultySubject table for many-to-many relationship
+        stmt.execute("CREATE TABLE IF NOT EXISTS FacultySubject (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "facultyId INTEGER," +
+                "subjectId INTEGER," +
+                "FOREIGN KEY(facultyId) REFERENCES Faculty(id)," +
+                "FOREIGN KEY(subjectId) REFERENCES Subject(id))");
+        
+        } // Close try-with-resources block
     }
 
     // ✅ Insert Methods
@@ -145,12 +153,15 @@ public class DBHelper {
         Connection conn = connect();
         ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM Faculty");
         while (rs.next()) {
-            list.add(new Faculty(
+            Faculty faculty = new Faculty(
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getString("availableFrom"),
                     rs.getString("availableTo")
-            ));
+            );
+            // Load assigned subjects for this faculty
+            faculty.setAssignedSubjects(getSubjectsForFaculty(faculty.getId()));
+            list.add(faculty);
         }
         conn.close();
         return list;
@@ -216,6 +227,134 @@ public class DBHelper {
         }
         conn.close();
         return list;
+    }
+
+    // ✅ Faculty-Subject relationship methods
+    public static void assignSubjectToFaculty(int facultyId, int subjectId) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "INSERT INTO FacultySubject (facultyId, subjectId) VALUES (?, ?)");
+        pstmt.setInt(1, facultyId);
+        pstmt.setInt(2, subjectId);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    public static void removeSubjectFromFaculty(int facultyId, int subjectId) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "DELETE FROM FacultySubject WHERE facultyId=? AND subjectId=?");
+        pstmt.setInt(1, facultyId);
+        pstmt.setInt(2, subjectId);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    public static List<Subject> getSubjectsForFaculty(int facultyId) throws SQLException {
+        List<Subject> list = new ArrayList<>();
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "SELECT s.* FROM Subject s INNER JOIN FacultySubject fs ON s.id = fs.subjectId WHERE fs.facultyId = ?");
+        pstmt.setInt(1, facultyId);
+        ResultSet rs = pstmt.executeQuery();
+        while (rs.next()) {
+            list.add(new Subject(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("hoursPerWeek"),
+                    rs.getInt("isOnline") == 1
+            ));
+        }
+        conn.close();
+        return list;
+    }
+
+    public static int getLastInsertedFacultyId() throws SQLException {
+        Connection conn = connect();
+        ResultSet rs = conn.createStatement().executeQuery("SELECT last_insert_rowid() as id");
+        int id = 0;
+        if (rs.next()) {
+            id = rs.getInt("id");
+        }
+        conn.close();
+        return id;
+    }
+
+    // ✅ Delete Methods
+    public static void deleteFaculty(int facultyId) throws SQLException {
+        Connection conn = connect();
+        
+        // First remove all subject assignments for this faculty
+        PreparedStatement pstmt1 = conn.prepareStatement("DELETE FROM FacultySubject WHERE facultyId = ?");
+        pstmt1.setInt(1, facultyId);
+        pstmt1.executeUpdate();
+        
+        // Then delete the faculty record
+        PreparedStatement pstmt2 = conn.prepareStatement("DELETE FROM Faculty WHERE id = ?");
+        pstmt2.setInt(1, facultyId);
+        pstmt2.executeUpdate();
+        
+        conn.close();
+    }
+
+    public static void deleteSubject(int subjectId) throws SQLException {
+        Connection conn = connect();
+        
+        // First remove all faculty assignments for this subject
+        PreparedStatement pstmt1 = conn.prepareStatement("DELETE FROM FacultySubject WHERE subjectId = ?");
+        pstmt1.setInt(1, subjectId);
+        pstmt1.executeUpdate();
+        
+        // Then delete the subject record
+        PreparedStatement pstmt2 = conn.prepareStatement("DELETE FROM Subject WHERE id = ?");
+        pstmt2.setInt(1, subjectId);
+        pstmt2.executeUpdate();
+        
+        conn.close();
+    }
+
+    public static void deleteRoom(int roomId) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement("DELETE FROM Room WHERE id = ?");
+        pstmt.setInt(1, roomId);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    // ✅ Update Methods
+    public static void updateFaculty(int facultyId, String name, String availableFrom, String availableTo) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "UPDATE Faculty SET name = ?, availableFrom = ?, availableTo = ? WHERE id = ?");
+        pstmt.setString(1, name);
+        pstmt.setString(2, availableFrom);
+        pstmt.setString(3, availableTo);
+        pstmt.setInt(4, facultyId);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    public static void updateSubject(int subjectId, String name, int hoursPerWeek, boolean isOnline) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "UPDATE Subject SET name = ?, hoursPerWeek = ?, isOnline = ? WHERE id = ?");
+        pstmt.setString(1, name);
+        pstmt.setInt(2, hoursPerWeek);
+        pstmt.setInt(3, isOnline ? 1 : 0);
+        pstmt.setInt(4, subjectId);
+        pstmt.executeUpdate();
+        conn.close();
+    }
+
+    public static void updateRoom(int roomId, String roomNo, int capacity) throws SQLException {
+        Connection conn = connect();
+        PreparedStatement pstmt = conn.prepareStatement(
+                "UPDATE Room SET roomNo = ?, capacity = ? WHERE id = ?");
+        pstmt.setString(1, roomNo);
+        pstmt.setInt(2, capacity);
+        pstmt.setInt(3, roomId);
+        pstmt.executeUpdate();
+        conn.close();
     }
 }
 
