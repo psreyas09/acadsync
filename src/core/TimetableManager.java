@@ -1,7 +1,9 @@
 package core;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import models.*;
+import utils.DBHelper;
 
 public class TimetableManager {
     private List<TimetableEntry> entries;
@@ -11,97 +13,39 @@ public class TimetableManager {
     }
 
     public void addEntry(TimetableEntry entry) {
-        // check clash before adding
-        if (!hasClash(entry)) {
-            entries.add(entry);
-            System.out.println("✅ Entry added: " + entry.getSubject().getName() +
-                               " for " + entry.getClassGroup().getClassId() +
-                               " at " + entry.getTimeSlot().getDay() + " " + entry.getTimeSlot().getStartTime());
-        } else {
-            System.out.println("❌ Clash detected! Could not add entry for " + entry.getSubject().getName());
-        }
+        entries.add(entry);
     }
 
     public List<TimetableEntry> getEntries() {
         return entries;
     }
 
-    // ✅ Generate timetable with simple assignment
-    public void generateTimetable(List<ClassGroup> classGroups,
-                                  List<Subject> subjects,
-                                  List<Faculty> faculties,
-                                  List<Room> rooms,
-                                  List<TimeSlot> slots) {
+    public void generateTimetable() {
+        entries.clear();
 
-        System.out.println("⚡ Generating timetable...");
+        try {
+            List<Faculty> faculties = DBHelper.getAllFaculties();
+            List<Subject> subjects = DBHelper.getAllSubjects();
+            List<Room> rooms = DBHelper.getAllRooms();
 
-        Random rand = new Random();
-
-        for (ClassGroup group : classGroups) {
-            for (Subject subject : subjects) {
-                // assign random faculty, room, and timeslot
-                Faculty faculty = faculties.get(rand.nextInt(faculties.size()));
-                Room room = rooms.get(rand.nextInt(rooms.size()));
-                TimeSlot slot = slots.get(rand.nextInt(slots.size()));
-
-                TimetableEntry entry = new TimetableEntry(faculty, group, subject, room, slot);
-                addEntry(entry); // auto checks clashes
+            if (faculties.isEmpty() || subjects.isEmpty() || rooms.isEmpty()) {
+                System.out.println("⚠ Not enough data to generate timetable.");
+                return;
             }
-        }
 
-        System.out.println("✅ Timetable generation complete!");
-    }
+            // Simple round-robin allocation
+            for (int i = 0; i < subjects.size(); i++) {
+                Faculty faculty = faculties.get(i % faculties.size());
+                Room room = rooms.get(i % rooms.size());
+                Subject subject = subjects.get(i);
 
-    // ✅ Clash detection
-    private boolean hasClash(TimetableEntry newEntry) {
-        for (TimetableEntry e : entries) {
-            boolean sameDayTime = e.getTimeSlot().getDay().equals(newEntry.getTimeSlot().getDay()) &&
-                                  e.getTimeSlot().getStartTime().equals(newEntry.getTimeSlot().getStartTime());
-
-            if (sameDayTime) {
-                // Clash if faculty, room, or classGroup already busy
-                if (e.getFaculty().getId() == newEntry.getFaculty().getId() ||
-                    e.getRoom().getId() == newEntry.getRoom().getId() ||
-                    e.getClassGroup().getClassId().equals(newEntry.getClassGroup().getClassId())) {
-                    return true;
-                }
+                TimeSlot ts = new TimeSlot("Monday", "09:00", "10:00"); // demo slot
+                TimetableEntry entry = new TimetableEntry(faculty, null, subject, room, ts);
+                entries.add(entry);
             }
-        }
-        return false;
-    }
 
-    // ✅ Manual clash check
-    public void detectClashes() {
-        System.out.println("🔎 Checking for conflicts...");
-        for (int i = 0; i < entries.size(); i++) {
-            for (int j = i + 1; j < entries.size(); j++) {
-                if (hasClash(entries.get(j))) {
-                    System.out.println("⚠️ Clash detected between " +
-                            entries.get(i).getSubject().getName() + " and " +
-                            entries.get(j).getSubject().getName() +
-                            " at " + entries.get(i).getTimeSlot().getDay() +
-                            " " + entries.get(i).getTimeSlot().getStartTime());
-                }
-            }
+        } catch (Exception e) {
+            System.out.println("Error generating timetable: " + e.getMessage());
         }
-    }
-
-    // ✅ Print timetable neatly
-    public void printTimetable() {
-        System.out.println("\n📅 Generated Timetable:");
-        for (TimetableEntry e : entries) {
-            System.out.println(e.getClassGroup().getClassId() + " | " +
-                               e.getSubject().getName() + " | " +
-                               e.getFaculty().getName() + " | " +
-                               e.getRoom().getRoomNo() + " | " +
-                               e.getTimeSlot().getDay() + " " +
-                               e.getTimeSlot().getStartTime() + "-" +
-                               e.getTimeSlot().getEndTime());
-        }
-    }
-
-    // (Future) Export to PDF
-    public void exportToPDF() {
-        System.out.println("📄 Exporting timetable to PDF... (not implemented yet)");
     }
 }
