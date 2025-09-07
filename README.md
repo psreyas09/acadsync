@@ -218,10 +218,10 @@ This project is licensed under the **MIT License** .
 
 ## 👨‍💻 Author
 
-**Sreyas P** - [@psreyas09](https://github.com/psreyas09)
-**Akshara**
-**Ashil**
-**Anusree**
+-**Sreyas P** - [@psreyas09](https://github.com/psreyas09)
+-**Akshara**
+-**Ashil**
+-**Anusree**
 
 ---
 
