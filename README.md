@@ -212,13 +212,16 @@ We welcome contributions! Here's how you can help:
 
 ## 📄 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License** .
 
 ---
 
 ## 👨‍💻 Author
 
 **Sreyas P** - [@psreyas09](https://github.com/psreyas09)
+**Akshara**
+**Ashil**
+**Anusree**
 
 ---
 
