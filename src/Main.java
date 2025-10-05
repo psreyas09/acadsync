@@ -6,7 +6,7 @@ public class Main {
         try {
             // Ensure DB & tables exist
             DBHelper.createTables();
-        } catch (Exception e) {
+        } catch (Exception e) { 
             System.out.println("⚠ Database error: " + e.getMessage());
         }
 

@@ -43,6 +43,7 @@ public class DBHelper {
                 "name TEXT," +
                 "department TEXT," +
                 "semester INTEGER)");
+                
 
         // TimeSlot table
         stmt.execute("CREATE TABLE IF NOT EXISTS TimeSlot (" +
